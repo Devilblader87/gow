@@ -1,0 +1,27 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "workingon" ]
+  pull_request:
+    branches: [ "workingon" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build XFCE Docker image
+        run: |
+          docker build . \
+            --file apps/xfce/build/Dockerfile \
+            --tag ghcr.io/devilblader87/gow-xfce-dev:edge
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push to GHCR
+        run: docker push ghcr.io/devilblader87/gow-xfce-dev:edge
