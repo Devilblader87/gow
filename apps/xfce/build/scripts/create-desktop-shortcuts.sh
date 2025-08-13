@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Create desktop shortcuts with proper security flags for containerized environment
+
+# Create Desktop directory if it doesn't exist
+mkdir -p ~/Desktop
+
+# VS Code shortcut with sandbox disabled for container environment
+cat > ~/Desktop/code.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Visual Studio Code
+Comment=Code Editing. Redefined.
+Exec=code --no-sandbox --user-data-dir=/home/retro/.vscode-user
+Icon=code
+Terminal=false
+Categories=Development;IDE;
+MimeType=text/plain;inode/directory;
+StartupWMClass=Code
+EOF
+
+# Chrome shortcut with sandbox disabled for container environment
+cat > ~/Desktop/chrome.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Google Chrome
+Comment=Access the Internet
+Exec=google-chrome --no-sandbox --user-data-dir=/home/retro/.chrome-user --disable-dev-shm-usage --disable-gpu-sandbox
+Icon=google-chrome
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;
+StartupWMClass=Google-chrome
+EOF
+
+# Steam shortcut
+cat > ~/Desktop/steam.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Steam
+Comment=Application for managing and playing games on Steam
+Exec=steam
+Icon=steam
+Terminal=false
+Categories=Network;FileTransfer;Game;
+StartupWMClass=Steam
+EOF
+
+# Unity Hub shortcut
+cat > ~/Desktop/unity-hub.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Unity Hub
+Comment=Unity development environment
+Exec=/opt/unity-hub --no-sandbox
+Icon=unity-hub
+Terminal=false
+Categories=Development;
+StartupWMClass=Unity Hub
+EOF
+
+# Make all desktop files executable
+chmod +x ~/Desktop/*.desktop
+
+echo "Desktop shortcuts created successfully!"

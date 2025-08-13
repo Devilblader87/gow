@@ -1,0 +1,79 @@
+FROM ghcr.io/games-on-whales/apps/xfce:latest
+
+# Install sudo + secret-service/keyring bits
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      sudo gnome-keyring dbus-x11 libsecret-1-0 seahorse \
+      git ca-certificates && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Give 'retro' passwordless sudo
+RUN usermod -aG sudo retro && \
+    printf "retro ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers.d/010-retro && \
+    chmod 440 /etc/sudoers.d/010-retro
+
+# Session init script to ensure XDG_RUNTIME_DIR, DBus, and gnome-keyring are up
+RUN install -d -o retro -g retro /opt/session-init
+RUN bash -lc 'cat > /opt/session-init/xfce-session-init.sh << "EOF"
+#!/usr/bin/env bash
+set -euo pipefail
+USER_HOME="/home/retro"
+RUNTIME_DIR="$USER_HOME/.run/user/$(id -u)"
+mkdir -p "$RUNTIME_DIR"
+chmod 700 "$USER_HOME/.run" "$USER_HOME/.run/user" "$RUNTIME_DIR" 2>/dev/null || true
+export XDG_RUNTIME_DIR="$RUNTIME_DIR"
+# Start a user dbus if none is running
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  eval "$(dbus-launch --exit-with-session)"
+fi
+# Start gnome-keyring (secrets, ssh, pkcs11)
+if ! pgrep -u "$(id -u)" -x gnome-keyring-d >/dev/null 2>&1; then
+  eval "$(/usr/bin/gnome-keyring-daemon --start --components=secrets,ssh,pkcs11)"
+  export SSH_AUTH_SOCK
+fi
+exit 0
+EOF'
+
+RUN chmod +x /opt/session-init/xfce-session-init.sh && chown retro:retro /opt/session-init/xfce-session-init.sh
+
+# Autostart entry so the init script runs on every XFCE login
+RUN mkdir -p /etc/xdg/autostart && bash -lc 'cat > /etc/xdg/autostart/xfce-session-init.desktop << "EOF"
+[Desktop Entry]
+Type=Application
+Name=Session Init (DBus + Keyring)
+Exec=/opt/session-init/xfce-session-init.sh
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+EOF'
+
+# Optional: make Git store creds via libsecret if needed later
+# (VS Code uses keyring; this is a fallback)
+RUN git config --system credential.helper cache
+
+# Install Visual Studio Code (native .deb for full file access)
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
+    install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
+    echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y code && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create VS Code desktop shortcut
+RUN echo '[Desktop Entry]' > /home/retro/Desktop/vscode.desktop && \
+    echo 'Version=1.0' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Type=Application' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Name=Visual Studio Code' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Comment=Code Editing. Redefined.' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Exec=/usr/bin/code --no-sandbox --unity-launch %F' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Icon=com.visualstudio.code' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Terminal=false' >> /home/retro/Desktop/vscode.desktop && \
+    echo 'Categories=Utility;TextEditor;Development;IDE;' >> /home/retro/Desktop/vscode.desktop && \
+    chmod +x /home/retro/Desktop/vscode.desktop && \
+    chown retro:retro /home/retro/Desktop/vscode.desktop
+
+# Ensure retro user owns their home directory completely
+RUN chown -R retro:retro /home/retro
+
+LABEL maintainer="Stefan - Permissions Fixed XFCE with VS Code"
+LABEL version="permissions-fix-1.0"
+LABEL description="XFCE environment with proper permissions, keyring, and VS Code for file editing"

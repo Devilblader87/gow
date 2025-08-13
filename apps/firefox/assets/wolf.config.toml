@@ -1,0 +1,23 @@
+[[apps]]
+title = "Firefox"
+icon_png_path = "https://games-on-whales.github.io/wildlife/apps/firefox/assets/icon.png"
+
+[apps.runner]
+type = "docker"
+name = "WolfFirefox"
+image = "ghcr.io/games-on-whales/firefox:edge"
+mounts = []
+env = ["RUN_SWAY=1", "MOZ_ENABLE_WAYLAND=1", "GOW_REQUIRED_DEVICES=/dev/input/* /dev/dri/* /dev/nvidia*", ]
+devices = []
+ports = []
+base_create_json = """
+{
+  "HostConfig": {
+    "IpcMode": "host",
+    "Privileged": false,
+    "CapAdd": ["NET_RAW", "MKNOD", "NET_ADMIN"],
+    "DeviceCgroupRules": ["c 13:* rmw", "c 244:* rmw"]
+  }
+}
+\
+"""

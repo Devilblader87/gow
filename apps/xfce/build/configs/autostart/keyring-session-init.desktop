@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Keyring Session Init
+Comment=Initialize GNOME Keyring and session environment
+Exec=/opt/gow/scripts/keyring-session-init.sh
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

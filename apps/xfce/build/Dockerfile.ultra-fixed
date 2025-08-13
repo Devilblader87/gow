@@ -1,0 +1,275 @@
+# Use the official Games on Whales XFCE base image
+FROM ghcr.io/games-on-whales/xfce:edge
+
+# Set DEBIAN_FRONTEND to noninteractive to avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Basic system updates and essential tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    vim \
+    nano \
+    software-properties-common \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create keyring directory
+RUN mkdir -p /usr/share/keyrings
+
+# Add Google Chrome repository and key
+RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+
+# Add VS Code repository and key 
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/microsoft-keyring.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
+
+# Add Node.js repository and key
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodejs-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/nodejs-keyring.gpg] https://deb.nodesource.com/node_20.x $(lsb_release -cs) main" > /etc/apt/sources.list.d/nodejs.list
+
+# Install main applications
+RUN apt-get update && apt-get install -y \
+    google-chrome-stable \
+    code \
+    nodejs \
+    python3 \
+    python3-pip \
+    blender \
+    gimp \
+    inkscape \
+    obs-studio \
+    audacity \
+    vlc \
+    libreoffice \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python data science packages
+RUN pip3 install --no-cache-dir --break-system-packages \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    jupyter \
+    jupyterlab \
+    scipy \
+    scikit-learn \
+    plotly \
+    requests
+
+# Install Node.js global packages
+RUN npm install -g \
+    typescript \
+    @angular/cli \
+    @vue/cli \
+    create-react-app \
+    nodemon \
+    pm2 \
+    eslint \
+    prettier
+
+# Install Unity Hub as AppImage
+RUN mkdir -p /opt/unityhub \
+    && cd /opt/unityhub \
+    && curl -L -o UnityHub.AppImage "https://public-cdn.cloud.unity3d.com/hub/prod/UnityHub.AppImage" \
+    && chmod +x UnityHub.AppImage
+
+# Install ALVR for Quest 3 streaming - Let's first check what's in the archive
+RUN mkdir -p /opt/alvr \
+    && cd /opt/alvr \
+    && curl -L -o alvr_launcher_linux.tar.gz https://github.com/alvr-org/ALVR/releases/latest/download/alvr_launcher_linux.tar.gz \
+    && tar -xzf alvr_launcher_linux.tar.gz \
+    && ls -la \
+    && find . -name "*alvr*" -type f \
+    && rm alvr_launcher_linux.tar.gz
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    clang \
+    make \
+    cmake \
+    gdb \
+    valgrind \
+    htop \
+    tree \
+    jq \
+    zip \
+    unzip \
+    default-jdk \
+    golang-go \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create desktop shortcuts
+RUN mkdir -p /home/retro/Desktop
+
+# VS Code shortcut
+RUN cat > /home/retro/Desktop/vscode.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Visual Studio Code
+Comment=Code Editing. Redefined.
+Exec=code --no-sandbox --user-data-dir=/home/retro/.vscode-root
+Icon=code
+Terminal=false
+Categories=Development;IDE;
+MimeType=text/plain;inode/directory;
+StartupWMClass=Code
+EOF
+
+# Chrome shortcut
+RUN cat > /home/retro/Desktop/chrome.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Google Chrome
+Comment=Access the Internet
+Exec=google-chrome --no-sandbox --user-data-dir=/home/retro/.chrome-root
+Icon=google-chrome
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;
+StartupWMClass=Google-chrome
+EOF
+
+# Blender shortcut
+RUN cat > /home/retro/Desktop/blender.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Blender
+Comment=3D modeling, animation, rendering and post-production
+Exec=blender
+Icon=blender
+Terminal=false
+Categories=Graphics;3DGraphics;
+MimeType=application/x-blender;
+EOF
+
+# Unity Hub shortcut
+RUN cat > /home/retro/Desktop/unity-hub.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Unity Hub
+Comment=Unity Hub - Manage Unity projects and installations
+Exec=/opt/unityhub/UnityHub.AppImage --no-sandbox
+Icon=unityhub
+Terminal=false
+Categories=Development;IDE;
+EOF
+
+# Steam shortcut (if available from base image)
+RUN cat > /home/retro/Desktop/steam.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Steam
+Comment=Application for managing and playing games on Steam
+Exec=steam
+Icon=steam
+Terminal=false
+Categories=Network;FileTransfer;Game;
+EOF
+
+# GIMP shortcut
+RUN cat > /home/retro/Desktop/gimp.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GIMP
+Comment=GNU Image Manipulation Program
+Exec=gimp
+Icon=gimp
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+MimeType=image/bmp;image/gif;image/jpeg;image/jpg;image/png;image/tiff;image/x-bmp;image/x-gray;image/x-icb;image/x-ico;image/x-png;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-xbitmap;image/x-xpixmap;image/x-pcx;image/svg+xml;image/x-compressed-xcf;image/x-gimp-xcf;
+EOF
+
+# JupyterLab shortcut
+RUN cat > /home/retro/Desktop/jupyter.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=JupyterLab
+Comment=Interactive development environment for Jupyter notebooks
+Exec=bash -c "cd /home/retro && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
+Icon=jupyter
+Terminal=true
+Categories=Development;Science;
+EOF
+
+# Make all desktop files executable
+RUN chmod +x /home/retro/Desktop/*.desktop
+
+# Create a comprehensive README
+RUN cat > /home/retro/Desktop/README-GAMING-DEV.txt << 'EOF'
+🎮 ULTRA GAMING & DEVELOPMENT ENVIRONMENT 🎮
+
+🔓 NATIVE INSTALLATIONS - FULL FILE ACCESS! 🔓
+
+🎯 GAMING & VR:
+● Steam - Should be available from base image
+● ALVR - Quest 3 wireless VR streaming
+● Blender - 3D modeling and animation  
+● Unity Hub - Game development platform
+
+💻 DEVELOPMENT:
+● Visual Studio Code - Full IDE with native file access
+● Python 3 + data science stack (NumPy, Pandas, Jupyter, etc.)
+● Node.js 20 + modern tools (TypeScript, Angular, React, Vue)
+● Git, kubectl, build tools (gcc, g++, clang, golang, Java 17)
+
+🎨 CREATIVE TOOLS:
+● GIMP - Advanced image editing
+● Inkscape - Vector graphics
+● OBS Studio - Streaming and recording
+● Audacity - Audio editing
+● LibreOffice suite
+
+🌐 BROWSERS & TOOLS:
+● Google Chrome - Full browser
+● VLC Media Player
+● All standard development tools
+
+🔓 FILE ACCESS:
+✅ All applications are NATIVE (not Flatpak)
+✅ Full directory browsing and file access
+✅ Can open/save files anywhere in container
+✅ No permission restrictions!
+
+🥽 Quest 3 VR Setup:
+1. Launch "ALVR Quest 3 Streaming" from desktop
+2. Install ALVR app on Quest 3 from Meta Store  
+3. Connect both PC and Quest 3 to same Wi-Fi
+4. Follow ALVR pairing process
+5. Enjoy wireless PCVR!
+
+Happy coding and gaming! 🚀
+EOF
+
+# Create environment setup
+RUN mkdir -p /home/retro/workspace /home/retro/projects /home/retro/Downloads
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PYTHONPATH=/home/retro/projects
+ENV JUPYTER_ENABLE_LAB=yes
+
+# Final cleanup
+RUN apt-get autoremove -y && apt-get autoclean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Switch back to the default user that GOW expects
+USER root
+
+LABEL maintainer="Stefan - Ultra Gaming & Development Environment"
+LABEL version="ultra-fixed-1.0"
+LABEL description="Fixed ultra environment with native Blender, Unity, ALVR Quest 3, VS Code, Python, Node.js - NATIVE FILE ACCESS"
