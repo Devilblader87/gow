@@ -10,20 +10,7 @@ RUN echo "=== Base Image Debug Info ===" && \
     cat /etc/passwd && \
     echo "Groups in base image:" && \
     cat /etc/group && \
-    echo "==# Install development version managers and tools
-RUN 
-    # Install NVM (Node Version Manager) 
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && 
-    # Install Pyenv (Python Version Manager) 
-    git clone https://github.com/pyenv/pyenv.git /opt/pyenv && 
-    # Install SDKMAN (Java/Scala/Kotlin Version Manager) 
-    curl -s "https://get.sdkman.io" | bash && 
-    # Install Rustup (Rust toolchain installer) 
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && 
-    # Install Snap (if not already available) 
-    (apt-get install -y snapd || echo "Snap already available") && 
-    # Install Flatpak applications 
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo========"
+    echo "=========================="
 
 ARG CORE_PACKAGES=" \
     lsb-release \
