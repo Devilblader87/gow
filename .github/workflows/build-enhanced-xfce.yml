@@ -18,9 +18,10 @@ on:
       base_app_image:
         description: 'Base app image to use (if using existing)'
         type: string
-        default: 'ghcr.io/devilblader87/gow/base-app:latest'
+        default: 'ghcr.io/${{ github.repository_owner }}/gow/base-app:latest'
   push:
     branches:
+      - main
       - master
     paths:
       - 'apps/xfce/**'
@@ -29,7 +30,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/xfce-enhanced
+  IMAGE_NAME: ${{ github.repository_owner }}/gow/xfce
 
 jobs:
   build-base-images:

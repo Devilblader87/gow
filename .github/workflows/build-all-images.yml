@@ -1,0 +1,299 @@
+name: Build All GOW Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      push_to_registry:
+        description: 'Push to GitHub Container Registry'
+        type: boolean
+        default: true
+      image_tag:
+        description: 'Image tag (default: latest)'
+        type: string
+        default: 'latest'
+      build_base_images:
+        description: 'Rebuild base images (slower but ensures latest)'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'apps/**'
+      - 'images/**'
+      - '.github/workflows/build-all-images.yml'
+  schedule:
+    # Build weekly on Sundays at 2 AM UTC to keep images fresh
+    - cron: '0 2 * * 0'
+
+env:
+  REGISTRY: ghcr.io
+  NAMESPACE: ${{ github.repository_owner }}/gow
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build_base: ${{ steps.check.outputs.build_base }}
+      namespace: ${{ steps.check.outputs.namespace }}
+    steps:
+      - name: Check build requirements
+        id: check
+        run: |
+          # Force base image rebuild if requested or if this is a scheduled build
+          if [[ "${{ inputs.build_base_images }}" == "true" || "${{ github.event_name }}" == "schedule" ]]; then
+            echo "build_base=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_base=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set namespace (lowercase for container registry)
+          NAMESPACE=$(echo "${{ env.NAMESPACE }}" | tr '[:upper:]' '[:lower:]')
+          echo "namespace=${NAMESPACE}" >> $GITHUB_OUTPUT
+          
+          echo "Build base images: ${{ steps.check.outputs.build_base }}"
+          echo "Registry namespace: ${NAMESPACE}"
+
+  build-base:
+    needs: prepare
+    if: needs.prepare.outputs.build_base == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      base-image: ${{ steps.base.outputs.image }}
+      base-app-image: ${{ steps.base-app.outputs.image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Base Image
+        id: base
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base:${{ inputs.image_tag || 'latest' }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --tag "${IMAGE_TAG}" \
+            --push \
+            --cache-from type=gha,scope=base \
+            --cache-to type=gha,mode=max,scope=base \
+            images/base/build/
+          echo "image=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Build Base-App Image
+        id: base-app
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base-app:${{ inputs.image_tag || 'latest' }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BASE_IMAGE="${{ steps.base.outputs.image }}" \
+            --tag "${IMAGE_TAG}" \
+            --push \
+            --cache-from type=gha,scope=base-app \
+            --cache-to type=gha,mode=max,scope=base-app \
+            images/base-app/build/
+          echo "image=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+  build-xfce:
+    needs: [prepare, build-base]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/xfce
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=commit-
+            type=raw,value=${{ inputs.image_tag || 'latest' }}
+            type=raw,value=enhanced
+          labels: |
+            org.opencontainers.image.title=Enhanced XFCE Development Environment
+            org.opencontainers.image.description=XFCE desktop with Unity Hub, VS Code, Chrome, Steam, and development tools
+            org.opencontainers.image.vendor=Games on Whales Fork
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Determine base app image
+        id: base-app-image
+        run: |
+          if [[ "${{ needs.build-base.outputs.base-app-image }}" != "" ]]; then
+            # Use freshly built base-app image
+            BASE_APP_IMAGE="${{ needs.build-base.outputs.base-app-image }}"
+          else
+            # Use existing base-app image from upstream or previous build
+            BASE_APP_IMAGE="${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base-app:${{ inputs.image_tag || 'latest' }}"
+          fi
+          echo "image=${BASE_APP_IMAGE}" >> $GITHUB_OUTPUT
+          echo "Using base-app image: ${BASE_APP_IMAGE}"
+
+      - name: Build and push XFCE image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/xfce/build
+          platforms: linux/amd64
+          push: ${{ inputs.push_to_registry != false }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_APP_IMAGE=${{ steps.base-app-image.outputs.image }}
+            IMAGE_SOURCE=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=xfce
+          cache-to: type=gha,mode=max,scope=xfce
+
+  build-apps:
+    needs: [prepare, build-base]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [steam, firefox, heroic-games-launcher, kodi, lutris, retroarch, prismlauncher]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if app has Dockerfile
+        id: check-dockerfile
+        run: |
+          if [[ -f "apps/${{ matrix.app }}/build/Dockerfile" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract metadata
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/${{ matrix.app }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=commit-
+            type=raw,value=${{ inputs.image_tag || 'latest' }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.app }}
+            org.opencontainers.image.description=GOW containerized ${{ matrix.app }} application
+            org.opencontainers.image.vendor=Games on Whales Fork
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Determine base app image
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: base-app-image
+        run: |
+          if [[ "${{ needs.build-base.outputs.base-app-image }}" != "" ]]; then
+            BASE_APP_IMAGE="${{ needs.build-base.outputs.base-app-image }}"
+          else
+            BASE_APP_IMAGE="${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base-app:${{ inputs.image_tag || 'latest' }}"
+          fi
+          echo "image=${BASE_APP_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push ${{ matrix.app }}
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/${{ matrix.app }}/build
+          platforms: linux/amd64
+          push: ${{ inputs.push_to_registry != false }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_APP_IMAGE=${{ steps.base-app-image.outputs.image }}
+            IMAGE_SOURCE=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  summary:
+    needs: [prepare, build-base, build-xfce, build-apps]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "## 🚀 GOW Container Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Built Images:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace:** ${{ needs.prepare.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ inputs.image_tag || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.build-base.result }}" == "success" ]]; then
+            echo "✅ **Base Images:** Built successfully" >> $GITHUB_STEP_SUMMARY
+            echo "   - Base: \`${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base:${{ inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "   - Base-App: \`${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/base-app:${{ inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **Base Images:** Skipped (using existing)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.build-xfce.result }}" == "success" ]]; then
+            echo "✅ **XFCE Desktop:** Built successfully" >> $GITHUB_STEP_SUMMARY
+            echo "   - Image: \`${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/xfce:${{ inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **XFCE Desktop:** Failed to build" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.build-apps.result }}" == "success" ]]; then
+            echo "✅ **Application Images:** Built successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Application Images:** Some builds failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 XFCE Desktop Features:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Unity Hub for game development" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Visual Studio Code with Copilot support" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Google Chrome browser" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Steam gaming platform" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GNOME Keyring for secure credential storage" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Development tools (Git, Node.js, Python, .NET)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Use in Wolf:** Update your \`config.toml\` to use: \`${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/xfce:${{ inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Pull locally:** \`docker pull ${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/xfce:${{ inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Restart Wolf:** \`sudo systemctl restart wolf\`" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Connect:** Use Moonlight to access your enhanced XFCE desktop" >> $GITHUB_STEP_SUMMARY
