@@ -14,7 +14,7 @@ on:
       use_existing_base:
         description: 'Use existing base images (skip rebuilding base/base-app)'
         type: boolean
-        default: false
+        default: true
       base_app_image:
         description: 'Base app image to use (if using existing)'
         type: string
@@ -41,6 +41,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set repository owner lowercase
+        id: repo-owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
@@ -50,7 +54,7 @@ jobs:
 
       - name: Set base image tag
         id: base-tag
-        run: echo "image=${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/gow/base:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+        run: echo "image=${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/gow/base:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push base image
         id: base
@@ -65,7 +69,7 @@ jobs:
 
       - name: Set base-app image tag  
         id: base-app-tag
-        run: echo "image=${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/gow/base-app:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+        run: echo "image=${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/gow/base-app:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push base-app image
         id: base-app
@@ -94,6 +98,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set repository owner lowercase
+        id: repo-owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
@@ -117,8 +125,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ inputs.push_to_registry }}
           tags: |
-            ${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ env.IMAGE_NAME_PREFIX }}:${{ inputs.image_tag }}
-            ${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ env.IMAGE_NAME_PREFIX }}:edge
+            ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:edge
           build-args: |
             BASE_APP_IMAGE=${{ steps.base-app-image.outputs.image }}
           cache-from: type=gha
@@ -129,7 +137,7 @@ jobs:
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "### XFCE Container Built Successfully ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ env.IMAGE_NAME_PREFIX }}:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Base App Image:** \`${{ steps.base-app-image.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Pushed to Registry:** ${{ inputs.push_to_registry }}" >> $GITHUB_STEP_SUMMARY
           echo "**Used Existing Base:** ${{ inputs.use_existing_base }}" >> $GITHUB_STEP_SUMMARY
