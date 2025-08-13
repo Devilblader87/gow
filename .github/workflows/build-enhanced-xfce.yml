@@ -14,11 +14,11 @@ on:
       use_existing_base:
         description: 'Use existing base images (skip rebuilding base/base-app)'
         type: boolean
-        default: true
+        default: false
       base_app_image:
         description: 'Base app image to use (if using existing)'
         type: string
-        default: 'ghcr.io/${{ github.repository_owner }}/gow/base-app:latest'
+        default: 'ghcr.io/games-on-whales/base-app:edge'
   push:
     branches:
       - main
@@ -27,6 +27,7 @@ on:
       - 'apps/xfce/**'
       - 'build-xfce-enhanced.sh'
       - '.github/workflows/build-enhanced-xfce.yml'
+  # Removed automatic builds to minimize costs - use manual triggers instead
 
 env:
   REGISTRY: ghcr.io

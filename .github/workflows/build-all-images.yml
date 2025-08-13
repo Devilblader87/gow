@@ -15,17 +15,18 @@ on:
         description: 'Rebuild base images (slower but ensures latest)'
         type: boolean
         default: false
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - 'apps/**'
-      - 'images/**'
-      - '.github/workflows/build-all-images.yml'
-  schedule:
+  # push:
+    # branches:
+    #   - main
+    #   - master
+    # paths:
+    #   - 'apps/**'
+    #   - 'images/**'
+    #   - '.github/workflows/build-all-images.yml'
+  # schedule:
     # Build weekly on Sundays at 2 AM UTC to keep images fresh
-    - cron: '0 2 * * 0'
+    # - cron: '0 2 * * 0'
+  # Automatic builds disabled to minimize costs - use manual workflow_dispatch only
 
 env:
   REGISTRY: ghcr.io

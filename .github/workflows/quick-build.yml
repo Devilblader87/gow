@@ -28,7 +28,8 @@ jobs:
     with:
       push_to_registry: ${{ inputs.push_to_registry }}
       image_tag: ${{ inputs.image_tag }}
-      use_existing_base: ${{ inputs.build_target == 'xfce-only' }}
+      use_existing_base: ${{ inputs.build_target != 'base-and-xfce' }}
+      base_app_image: 'ghcr.io/games-on-whales/base-app:edge'
     secrets: inherit
 
   all-images:
