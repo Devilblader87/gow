@@ -32,8 +32,8 @@ jobs:
       contents: read
       packages: write
     outputs:
-      base-image: ${{ steps.base.outputs.image }}
-      base-app-image: ${{ steps.base-app.outputs.image }}
+      base-image: ${{ steps.base-tag.outputs.image }}
+      base-app-image: ${{ steps.base-app-tag.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,6 +48,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set base image tag
+        id: base-tag
+        run: echo "image=${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+
       - name: Build and push base image
         id: base
         uses: docker/build-push-action@v5
@@ -55,11 +59,13 @@ jobs:
           context: ./images/base/build
           platforms: linux/amd64
           push: ${{ inputs.push_to_registry }}
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base:${{ inputs.image_tag }}
+          tags: ${{ steps.base-tag.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-        outputs:
-          image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base:${{ inputs.image_tag }}
+
+      - name: Set base-app image tag  
+        id: base-app-tag
+        run: echo "image=${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base-app:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
 
       - name: Build and push base-app image
         id: base-app
@@ -68,13 +74,11 @@ jobs:
           context: ./images/base-app/build
           platforms: linux/amd64
           push: ${{ inputs.push_to_registry }}
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base-app:${{ inputs.image_tag }}
+          tags: ${{ steps.base-app-tag.outputs.image }}
           build-args: |
-            BASE_IMAGE=${{ steps.base.outputs.image }}
+            BASE_IMAGE=${{ steps.base-tag.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-        outputs:
-          image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/gow/base-app:${{ inputs.image_tag }}
 
   build-xfce:
     runs-on: ubuntu-latest
