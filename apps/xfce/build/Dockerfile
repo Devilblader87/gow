@@ -324,25 +324,6 @@ Categories=Development;' > /usr/share/applications/jetbrains-toolbox.desktop && 
     # Download Unity Hub icon (allow failure) \
     wget -qO /usr/share/pixmaps/unity-hub.png https://unity.com/favicon.ico || echo "Icon download failed"
 
-# Install version managers and package managers (as root, then switch to retro)
-RUN \
-    # Install NVM (Node Version Manager) \
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
-    # Install Pyenv (Python Version Manager) \
-    git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
-    # Install SDKMAN (Java/Scala/Kotlin Version Manager) \
-    curl -s "https://get.sdkman.io" | bash && \
-    # Install Rustup (Rust toolchain installer) \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
-    # Install Oh My Zsh \
-    sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
-    # Install Homebrew (Linux) \
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
-    # Install Snap (if not already available) \
-    (apt-get install -y snapd || echo "Snap already available") && \
-    # Install Flatpak applications \
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
 # Setup user and groups (simplified approach)
 RUN \
     # Ensure retro user exists (create if needed) \
