@@ -62,10 +62,48 @@ ARG ADDITIONAL_PACKAGES=" \
     exfat-fuse \
     fuse \
     git \
+    git-lfs \
     vim \
     nano \
     htop \
     tree \
+    neofetch \
+    curl \
+    wget \
+    ssh \
+    rsync \
+    jq \
+    yq \
+    screen \
+    tmux \
+    zsh \
+    fish \
+    bat \
+    exa \
+    ripgrep \
+    fd-find \
+    fzf \
+    tldr \
+    duf \
+    ncdu \
+    lsof \
+    net-tools \
+    iputils-ping \
+    traceroute \
+    nmap \
+    wireshark \
+    filezilla \
+    remmina \
+    meld \
+    gimp \
+    inkscape \
+    blender \
+    obs-studio \
+    vlc \
+    audacity \
+    keepassxc \
+    thunderbird \
+    libreoffice \
     "
 
 ARG DEV_PACKAGES=" \
@@ -73,11 +111,23 @@ ARG DEV_PACKAGES=" \
     cmake \
     python3 \
     python3-pip \
+    python3-venv \
     nodejs \
     npm \
+    yarn \
     default-jdk \
+    openjdk-17-jdk \
+    maven \
+    gradle \
     mono-complete \
     dotnet-sdk-8.0 \
+    golang-go \
+    rustc \
+    cargo \
+    php \
+    composer \
+    ruby \
+    ruby-dev \
     libnss3-dev \
     libatk-bridge2.0-dev \
     libdrm2 \
@@ -171,12 +221,74 @@ RUN \
     apt-get update && \
     apt-get install -y steam-installer
 
-# Install Unity Hub and setup applications
+# Install Docker and container tools
+RUN \
+    # Add Docker's official GPG key \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    # Add Docker repository \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list && \
+    # Update package lists \
+    apt-get update && \
+    # Install Docker CE \
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin && \
+    # Add retro user to docker group \
+    usermod -aG docker retro || true
+
+# Install additional development tools
+RUN \
+    # Install Kubernetes tools \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/ && \
+    # Install Helm \
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash && \
+    # Install Terraform \
+    wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list && \
+    apt-get update && \
+    apt-get install -y terraform && \
+    # Install AWS CLI \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf aws awscliv2.zip && \
+    # Install Azure CLI \
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
+    # Install Google Cloud CLI \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
+    apt-get update && \
+    apt-get install -y google-cloud-cli
+
+# Install Unity Hub and modern development tools
 RUN \
     # Download and install Unity Hub \
     wget -qO unity-hub.AppImage https://public-cdn.cloud.unity3d.com/hub/prod/UnityHub.AppImage && \
     chmod +x unity-hub.AppImage && \
     mv unity-hub.AppImage /opt/unity-hub && \
+    # \
+    # Install Postman \
+    wget -qO postman.tar.gz https://dl.pstmn.io/download/latest/linux64 && \
+    tar -xzf postman.tar.gz -C /opt/ && \
+    ln -sf /opt/Postman/Postman /usr/local/bin/postman && \
+    rm postman.tar.gz && \
+    # \
+    # Install Discord \
+    wget -qO discord.deb "https://discord.com/api/download?platform=linux&format=deb" && \
+    apt-get install -y ./discord.deb && \
+    rm discord.deb && \
+    # \
+    # Install Slack \
+    wget -qO slack.deb https://downloads.slack-edge.com/releases/linux/4.38.125/prod/x64/slack-desktop-4.38.125-amd64.deb && \
+    apt-get install -y ./slack.deb && \
+    rm slack.deb && \
+    # \
+    # Install JetBrains Toolbox \
+    wget -qO jetbrains-toolbox.tar.gz https://download.jetbrains.com/toolbox/jetbrains-toolbox-2.4.2.32922.tar.gz && \
+    tar -xzf jetbrains-toolbox.tar.gz -C /opt/ && \
+    mv /opt/jetbrains-toolbox-* /opt/jetbrains-toolbox && \
+    ln -sf /opt/jetbrains-toolbox/jetbrains-toolbox /usr/local/bin/jetbrains-toolbox && \
+    rm jetbrains-toolbox.tar.gz && \
     # \
     # Create Unity Hub desktop entry \
     mkdir -p /usr/share/applications && \
@@ -189,8 +301,47 @@ Terminal=false\n\
 Type=Application\n\
 Categories=Development;' > /usr/share/applications/unity-hub.desktop && \
     # \
+    # Create Postman desktop entry \
+    echo '[Desktop Entry]\n\
+Name=Postman\n\
+Comment=API Development Environment\n\
+Exec=/usr/local/bin/postman\n\
+Icon=postman\n\
+Terminal=false\n\
+Type=Application\n\
+Categories=Development;' > /usr/share/applications/postman.desktop && \
+    # \
+    # Create JetBrains Toolbox desktop entry \
+    echo '[Desktop Entry]\n\
+Name=JetBrains Toolbox\n\
+Comment=JetBrains IDE Manager\n\
+Exec=/usr/local/bin/jetbrains-toolbox\n\
+Icon=jetbrains-toolbox\n\
+Terminal=false\n\
+Type=Application\n\
+Categories=Development;' > /usr/share/applications/jetbrains-toolbox.desktop && \
+    # \
     # Download Unity Hub icon (allow failure) \
     wget -qO /usr/share/pixmaps/unity-hub.png https://unity.com/favicon.ico || echo "Icon download failed"
+
+# Install version managers and package managers (as root, then switch to retro)
+RUN \
+    # Install NVM (Node Version Manager) \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
+    # Install Pyenv (Python Version Manager) \
+    git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
+    # Install SDKMAN (Java/Scala/Kotlin Version Manager) \
+    curl -s "https://get.sdkman.io" | bash && \
+    # Install Rustup (Rust toolchain installer) \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    # Install Oh My Zsh \
+    sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
+    # Install Homebrew (Linux) \
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
+    # Install Snap (if not already available) \
+    (apt-get install -y snapd || echo "Snap already available") && \
+    # Install Flatpak applications \
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
 # Setup user and groups (simplified approach)
 RUN \
