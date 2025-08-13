@@ -19,6 +19,10 @@ on:
         description: 'Base app image to use (if using existing)'
         type: string
         default: 'ghcr.io/games-on-whales/base-app:edge'
+      no_cache:
+        description: 'Build without cache (forces fresh build)'
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -124,13 +128,12 @@ jobs:
           context: ./apps/xfce/build
           platforms: linux/amd64
           push: ${{ inputs.push_to_registry }}
+          no-cache: ${{ inputs.no_cache }}
           tags: |
             ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:${{ inputs.image_tag }}
             ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:edge
           build-args: |
             BASE_APP_IMAGE=${{ steps.base-app-image.outputs.image }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build summary
         run: |

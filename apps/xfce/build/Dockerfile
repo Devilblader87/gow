@@ -79,7 +79,7 @@ ARG ADDITIONAL_PACKAGES=" \
     zsh \
     fish \
     bat \
-    exa \
+    eza \
     ripgrep \
     fd-find \
     fzf \
