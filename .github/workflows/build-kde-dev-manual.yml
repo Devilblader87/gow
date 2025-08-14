@@ -147,3 +147,4 @@ jobs:
           echo "- Full sudo access for package installation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Usage:** Add this image to your Wolf config.toml to use the KDE development desktop!" >> $GITHUB_STEP_SUMMARY
+# KDE Workflow
