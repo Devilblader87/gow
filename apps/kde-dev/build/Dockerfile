@@ -100,8 +100,8 @@ COPY --chmod=755 scripts/setup-desktop.sh /opt/gow/scripts/setup-desktop.sh
 COPY --chmod=644 configs/plasma-config /opt/gow/configs/plasma-config
 COPY scripts/locale /etc/default/locale
 
-# Set proper ownership
-RUN chown -R retro:retro /opt/gow
+# Set proper ownership (ensure user exists first)
+RUN id retro && chown -R retro:retro /opt/gow && chown -R retro:retro /home/retro
 
 # Wolf-compatible environment
 ENV XDG_RUNTIME_DIR=/tmp/user/1000
