@@ -16,8 +16,8 @@ function launcher() {
     # XFCE4 will only run in X11 so we have to disable wayland
     flatpak override --user --nosocket=wayland
 
-    # Create commun folders
-    mkdir ~/Desktop ~/Documents ~/Downloads ~/Music ~/Pictures ~/Public ~/Templates ~/Videos
+    # Create common folders
+    mkdir -p ~/Desktop ~/Documents ~/Downloads ~/Music ~/Pictures ~/Public ~/Templates ~/Videos
     chmod 755 ~/Desktop ~/Documents ~/Downloads ~/Music ~/Pictures ~/Public ~/Templates ~/Videos
     
     # Create desktop shortcuts with proper container settings
@@ -30,6 +30,7 @@ function launcher() {
   # Launch DBUS
   sudo /opt/gow/startdbus
 
+  # Wolf-compatible environment setup
   export DESKTOP_SESSION=xfce
   export XDG_CURRENT_DESKTOP=XFCE
   export XDG_SESSION_TYPE="x11"
@@ -45,19 +46,28 @@ function launcher() {
   export GTK_THEME=Arc-Dark:dark
   unset WAYLAND_DISPLAY
 
-  # Setup XDG_RUNTIME_DIR for keyring
-  RUNTIME_DIR="$HOME/.run/user/$(id -u)"
+  # Setup XDG_RUNTIME_DIR for keyring - Wolf compatible
+  RUNTIME_DIR="/tmp/user/$(id -u)"
   mkdir -p "$RUNTIME_DIR"
-  chmod 700 "$HOME/.run" "$HOME/.run/user" "$RUNTIME_DIR" 2>/dev/null || true
+  chmod 700 "/tmp/user" "$RUNTIME_DIR" 2>/dev/null || true
   export XDG_RUNTIME_DIR="$RUNTIME_DIR"
 
   # Start gnome-keyring for VS Code and other apps
+  gow_log "[keyring] Starting GNOME keyring daemon..."
   if ! pgrep -u "$(id -u)" -x gnome-keyring-d >/dev/null 2>&1; then
-    eval "$(/usr/bin/gnome-keyring-daemon --start --components=secrets,ssh,pkcs11)"
-    export SSH_AUTH_SOCK
+    eval "$(/usr/bin/gnome-keyring-daemon --start --components=secrets,ssh,pkcs11 --daemonize)"
+    if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+      export SSH_AUTH_SOCK
+      gow_log "[keyring] GNOME keyring started successfully"
+    else
+      gow_log "[keyring] Warning: GNOME keyring may not have started properly"
+    fi
+  else
+    gow_log "[keyring] GNOME keyring already running"
   fi
 
   #
-  # Start Xwayland and xfce4
-  dbus-run-session -- bash -E -c "WAYLAND_DISPLAY=\$REAL_WAYLAND_DISPLAY Xwayland :0 & sleep 2 && startxfce4"
+  # Start Xwayland and xfce4 - Wolf pattern
+  gow_log "[xfce] Starting XFCE desktop environment..."
+  dbus-run-session -- bash -E -c "WAYLAND_DISPLAY=\$REAL_WAYLAND_DISPLAY Xwayland :0 & sleep 3 && startxfce4"
 }

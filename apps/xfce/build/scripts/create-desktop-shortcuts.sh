@@ -49,6 +49,48 @@ Categories=Network;FileTransfer;Game;
 StartupWMClass=Steam
 EOF
 
+# Blender shortcut
+cat > ~/Desktop/blender.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Blender
+Comment=3D modeling, animation, rendering and post-production
+Exec=blender
+Icon=blender
+Terminal=false
+Categories=Graphics;3DGraphics;
+StartupWMClass=Blender
+EOF
+
+# Filezilla shortcut
+cat > ~/Desktop/filezilla.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=FileZilla
+Comment=FTP, FTPS and SFTP client
+Exec=filezilla
+Icon=filezilla
+Terminal=false
+Categories=Network;FileTransfer;
+StartupWMClass=Filezilla
+EOF
+
+# Docker Desktop shortcut (command line access)
+cat > ~/Desktop/docker-terminal.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Docker Terminal
+Comment=Open terminal with Docker commands
+Exec=xfce4-terminal --title="Docker Terminal" --execute bash -c "echo 'Docker is available! Try: docker --version'; bash"
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;System;
+StartupWMClass=Xfce4-terminal
+EOF
+
 # Unity Hub shortcut
 cat > ~/Desktop/unity-hub.desktop << 'EOF'
 [Desktop Entry]

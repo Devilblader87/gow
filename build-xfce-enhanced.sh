@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Enhanced XFCE Docker Build Script
-# Run this on your host system where Docker is installed
+# Streamlined XFCE Docker Build Script with Keyring Support
+# This version removes the bloated packages that were causing crashes
 
 set -e
 
-echo "🐳 Building Enhanced XFCE Development Container..."
+echo "🐳 Building Streamlined XFCE Desktop Container..."
 echo "================================================="
 
 # Colors for output
@@ -30,27 +30,34 @@ if ! docker info &> /dev/null; then
 fi
 
 # Navigate to the xfce build directory
-cd "$(dirname "$0")/../apps/xfce"
+cd "$(dirname "$0")/apps/xfce"
 
-echo -e "${BLUE}📦 Building XFCE container with fixes...${NC}"
+echo -e "${BLUE}📦 Building streamlined XFCE container with keyring support...${NC}"
+echo -e "${YELLOW}ℹ️  This version removes bloated packages that were causing crashes${NC}"
 
 # Build the container
 docker build \
     --build-arg BASE_APP_IMAGE=ghcr.io/games-on-whales/base-app:edge \
     --tag ghcr.io/games-on-whales/xfce:enhanced \
     --tag ghcr.io/games-on-whales/xfce:latest \
+    --tag local/xfce-enhanced:latest \
     --file build/Dockerfile \
     build/
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ XFCE container built successfully!${NC}"
     echo -e "${GREEN}   Tagged as: ghcr.io/games-on-whales/xfce:enhanced${NC}"
-    echo -e "${GREEN}   Tagged as: ghcr.io/games-on-whales/xfce:latest${NC}"
+    echo -e "${GREEN}   Tagged as: local/xfce-enhanced:latest${NC}"
+    echo ""
+    echo -e "${BLUE}🧪 Testing keyring functionality...${NC}"
+    echo "Run this command to test keyring in the container:"
+    echo "docker run --rm -it local/xfce-enhanced:latest /opt/gow/scripts/test-keyring.sh"
     echo ""
     echo -e "${BLUE}🚀 Next steps:${NC}"
-    echo "1. Update your Wolf configuration to use the new image"
+    echo "1. Update your Wolf configuration to use: local/xfce-enhanced:latest"
     echo "2. Restart your Wolf containers"
-    echo "3. The keyring and Chrome issues should now be resolved!"
+    echo "3. VS Code keyring errors should be resolved!"
+    echo "4. Chrome should start properly with --no-sandbox"
 else
     echo -e "${RED}❌ Build failed. Check the output above for errors.${NC}"
     exit 1

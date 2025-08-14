@@ -1,83 +1,33 @@
 [[apps]]
-<<<<<<< HEAD
-title = 'Desktop (XFCE) - Ultra Gaming & Development'
-icon_png_path = "https://games-on-whales.github.io/wildlife/apps/xfce/assets/icon.png"
-=======
-title = 'Development Desktop (XFCE)'
-icon_png_path = 'https://games-on-whales.github.io/wildlife/apps/xfce/assets/icon.png'
-
-devices = []
-mounts = ['/mnt/Wolf:/mnt/Wolf:rw']
-ports = []
-base_create_json = '''{
-  "HostConfig": {
-    "IpcMode": "host",
-    "Privileged": true,
-    "CapAdd": ["SYS_ADMIN", "SYS_NICE", "SYS_PTRACE", "NET_RAW", "MKNOD", "NET_ADMIN"],
-    "SecurityOpt": ["seccomp=unconfined", "apparmor=unconfined"],
-    "DeviceCgroupRules": ["c 13:* rmw", "c 244:* rmw"]
-  },
-<<<<<<< HEAD
-  "User": "1000:1000"
-=======
-  "User": "1000:1000",
-  "Env": ["XDG_RUNTIME_DIR=/home/retro/.run", "DBUS_SESSION_BUS_ADDRESS=unix:path=/home/retro/.run/bus"]
->>>>>>> bddff3acef9675df87fecfc2ffe02c50c4a281de
-}
-<<<<<<< HEAD
-\
-"""
-
-[[apps]]
-title = 'Desktop (XFCE) - Minimal Test'
+title = "Enhanced XFCE Desktop"
 icon_png_path = "https://games-on-whales.github.io/wildlife/apps/xfce/assets/icon.png"
 
 [apps.runner]
-type = 'docker'
-name = 'WolfXFCEMinimal'
-image = 'ghcr.io/devilblader87/gow/xfce-minimal:edge'
-env = ['GOW_REQUIRED_DEVICES=/dev/input/* /dev/dri/* /dev/nvidia*']
+type = "docker"
+name = "WolfXFCEEnhanced"
+image = "ghcr.io/games-on-whales/xfce:enhanced"
+env = [
+    "RUN_SWAY=true",
+    "GOW_REQUIRED_DEVICES=/dev/input/* /dev/dri/* /dev/nvidia*",
+]
 devices = []
 mounts = [
-    'xfce-minimal-home:/home/retro:rw'
+    "xfce-enhanced-home:/home/retro:rw",
+    "xfce-projects:/mnt/Wolf/Projects:rw",
+    "xfce-unity:/mnt/Wolf/Unity:rw",
+    "xfce-downloads:/mnt/Wolf/Downloads:rw",
+    "xfce-documents:/mnt/Wolf/Documents:rw"
 ]
 ports = []
 base_create_json = """
 {
   "HostConfig": {
     "IpcMode": "host",
-    "Privileged": false,
-    "SecurityOpt": ["seccomp=unconfined"]
-  }
-}
-\
-"""
-
-[[apps]]
-title = 'Development Desktop (XFCE)'
-icon_png_path = 'https://games-on-whales.github.io/wildlife/apps/xfce/assets/icon.png'
-
-[apps.runner]
-type = 'docker'
-name = 'WolfXFCEDev'
-image = 'ghcr.io/devilblader87/gow/xfce-dev:ultra-fixed'
-env = [ 'GOW_REQUIRED_DEVICES=/dev/input/* /dev/dri/* /dev/nvidia*' ]
-devices = []
-mounts = ['/mnt/Wolf:/mnt/Wolf:rw']
-ports = []
-base_create_json = '''{
-  "HostConfig": {
-    "IpcMode": "host",
-    "Privileged": true,
     "CapAdd": ["SYS_ADMIN", "SYS_NICE", "SYS_PTRACE", "NET_RAW", "MKNOD", "NET_ADMIN"],
     "SecurityOpt": ["seccomp=unconfined", "apparmor=unconfined"],
+    "Ulimits": [{"Name":"nofile", "Hard":10240, "Soft":10240}],
+    "Privileged": false,
     "DeviceCgroupRules": ["c 13:* rmw", "c 244:* rmw"]
-  },
-  "User": "1000:1000",
-  "Env": ["XDG_RUNTIME_DIR=/home/retro/.run", "DBUS_SESSION_BUS_ADDRESS=unix:path=/home/retro/.run/bus"]
+  }
 }
-'''
-=======
-'''
-
->>>>>>> bddff3acef9675df87fecfc2ffe02c50c4a281de
+"""
