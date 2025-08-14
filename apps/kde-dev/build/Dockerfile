@@ -8,11 +8,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Core KDE and essential packages
 ARG CORE_PACKAGES=" \
-    kde-plasma-desktop \
+    plasma-desktop \
     plasma-workspace \
     plasma-nm \
-    kde-config-gtk-style \
-    breeze-gtk-theme \
     konsole \
     dolphin \
     kate \
@@ -20,40 +18,32 @@ ARG CORE_PACKAGES=" \
     dbus-x11 \
     sudo \
     flatpak \
-    snapd \
     gnome-keyring \
     libsecret-1-0 \
     libsecret-tools \
     kwallet-kf5 \
     kwalletmanager \
+    xdg-utils \
     "
 
 # Development tools that integrate well with KDE
 ARG DEV_PACKAGES=" \
     git \
     vim \
-    curl \
-    wget \
     build-essential \
     python3 \
     python3-pip \
-    python3-venv \
     nodejs \
     npm \
     default-jdk \
     ca-certificates \
-    software-properties-common \
     "
 
-# Prevent firefox snap
-COPY scripts/ff-unsnap /etc/apt/preferences.d/ff-unsnap
-
+# Setup repositories and install core packages
 RUN \
     # Setup repositories \
     apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common gpg-agent && \
-    # Add Firefox PPA \
-    add-apt-repository -y ppa:mozillateam/ppa && \
+    apt-get install -y --no-install-recommends software-properties-common gpg-agent curl wget && \
     # Add Microsoft GPG key and repository for VS Code \
     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
     install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
@@ -61,27 +51,29 @@ RUN \
     # Add Google Chrome repository \
     wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-keyring.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    # Clean up temp files \
+    rm -f packages.microsoft.gpg && \
     # Update package lists \
     apt-get update && \
-    # Install core packages \
-    apt-get install -y --no-install-recommends $CORE_PACKAGES $DEV_PACKAGES && \
-    # Install VS Code and Chrome \
-    apt-get install -y --no-install-recommends code google-chrome-stable && \
-    # Clean up repository tools \
+    # Install core packages in stages to avoid conflicts \
+    apt-get install -y --no-install-recommends $CORE_PACKAGES && \
+    apt-get install -y --no-install-recommends $DEV_PACKAGES && \
+    # Install VS Code and Chrome separately \
+    apt-get install -y --no-install-recommends code && \
+    apt-get install -y --no-install-recommends google-chrome-stable && \
+    # Clean up \
     apt-get remove -y software-properties-common gpg-agent && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* packages.microsoft.gpg
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Setup Flatpak for easy app installation
+# Prevent firefox snap (after package installation)
+COPY scripts/ff-unsnap /etc/apt/preferences.d/ff-unsnap
+
+# Setup Flatpak for easy app installation (basic setup only)
 RUN \
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
-    # Pre-install some useful Flatpak apps \
-    flatpak install -y flathub org.blender.Blender && \
-    flatpak install -y flathub org.filezillaproject.Filezilla && \
-    flatpak install -y flathub com.unity.UnityHub && \
-    # Clean up \
-    flatpak uninstall --unused -y || true
+    # Setup flatpak system-wide \
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
 
 # Setup user and permissions
 RUN \
