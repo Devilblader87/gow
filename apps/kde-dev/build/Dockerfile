@@ -6,86 +6,91 @@ FROM ${BASE_APP_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Core KDE and essential packages
-ARG CORE_PACKAGES=" \
-    plasma-desktop \
-    plasma-workspace \
-    plasma-nm \
-    konsole \
-    dolphin \
-    kate \
-    firefox \
-    dbus-x11 \
-    sudo \
-    flatpak \
-    gnome-keyring \
-    libsecret-1-0 \
-    libsecret-tools \
-    kwallet-kf5 \
-    kwalletmanager \
-    xdg-utils \
-    "
+# Install essential packages first (minimal approach)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        wget \
+        curl \
+        ca-certificates \
+        gnupg \
+        sudo \
+        dbus-x11 \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Development tools that integrate well with KDE
-ARG DEV_PACKAGES=" \
-    git \
-    vim \
-    build-essential \
-    python3 \
-    python3-pip \
-    nodejs \
-    npm \
-    default-jdk \
-    ca-certificates \
-    "
+# Install KDE desktop environment
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        kde-plasma-desktop \
+        plasma-workspace \
+        konsole \
+        dolphin \
+        kate \
+        firefox \
+        kwalletmanager \
+        plasma-nm \
+        xdg-utils \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Setup repositories and install core packages
-RUN \
-    # Setup repositories \
-    apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common gpg-agent curl wget && \
-    # Add Microsoft GPG key and repository for VS Code \
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
+# Install development tools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        vim \
+        build-essential \
+        python3 \
+        python3-pip \
+        nodejs \
+        npm \
+        gnome-keyring \
+        libsecret-1-0 \
+        libsecret-tools \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install VS Code
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && \
     install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/ && \
     echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list && \
-    # Add Google Chrome repository \
-    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-keyring.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    # Clean up temp files \
-    rm -f packages.microsoft.gpg && \
-    # Update package lists \
     apt-get update && \
-    # Install core packages in stages to avoid conflicts \
-    apt-get install -y --no-install-recommends $CORE_PACKAGES && \
-    apt-get install -y --no-install-recommends $DEV_PACKAGES && \
-    # Install VS Code and Chrome separately \
     apt-get install -y --no-install-recommends code && \
-    apt-get install -y --no-install-recommends google-chrome-stable && \
-    # Clean up \
-    apt-get remove -y software-properties-common gpg-agent && \
-    apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* packages.microsoft.gpg
+
+# Install Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends google-chrome-stable && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Prevent firefox snap (after package installation)
 COPY scripts/ff-unsnap /etc/apt/preferences.d/ff-unsnap
 
 # Setup Flatpak for easy app installation (basic setup only)
-RUN \
-    # Setup flatpak system-wide \
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends flatpak && \
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Setup user and permissions
 RUN \
-    # Ensure retro user exists \
-    id retro || useradd -m -s /bin/bash retro && \
+    # Ensure retro user exists with proper setup \
+    useradd -m -s /bin/bash -u 1000 retro || true && \
+    usermod -aG sudo retro && \
     # Create essential directories \
-    mkdir -p /opt/gow/scripts /etc/xdg/autostart && \
+    mkdir -p /opt/gow/scripts /etc/xdg/autostart /home/retro/.config && \
     # Allow retro user sudo access for installing packages \
     echo "retro ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
     echo "ALL ALL=NOPASSWD: /opt/gow/startdbus" >> /etc/sudoers && \
-    # Fix flatpak permissions \
-    chmod u+s /usr/bin/bwrap
+    # Fix flatpak permissions if bwrap exists \
+    [ -f /usr/bin/bwrap ] && chmod u+s /usr/bin/bwrap || true
 
 # Copy scripts and configs
 COPY --chmod=755 scripts/launch-comp.sh /opt/gow/launch-comp.sh
