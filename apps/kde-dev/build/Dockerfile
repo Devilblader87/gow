@@ -81,8 +81,9 @@ RUN apt-get update && \
 
 # Setup user and permissions
 RUN \
-    # Ensure retro user exists with proper setup \
-    useradd -m -s /bin/bash -u 1000 retro || true && \
+    # Check if retro user exists, if not create it \
+    id -u retro >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 retro && \
+    # Ensure retro user is in sudo group \
     usermod -aG sudo retro && \
     # Create essential directories \
     mkdir -p /opt/gow/scripts /etc/xdg/autostart /home/retro/.config && \
@@ -100,8 +101,8 @@ COPY --chmod=755 scripts/setup-desktop.sh /opt/gow/scripts/setup-desktop.sh
 COPY --chmod=644 configs/plasma-config /opt/gow/configs/plasma-config
 COPY scripts/locale /etc/default/locale
 
-# Set proper ownership (ensure user exists first)
-RUN id retro && chown -R retro:retro /opt/gow && chown -R retro:retro /home/retro
+# Set proper ownership (retro user should exist)
+RUN chown -R retro:retro /opt/gow && chown -R retro:retro /home/retro
 
 # Wolf-compatible environment
 ENV XDG_RUNTIME_DIR=/tmp/user/1000
