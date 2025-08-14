@@ -1,0 +1,76 @@
+name: Auto Build XFCE Container
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/xfce/**'
+      - '.github/workflows/auto-build-xfce.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'apps/xfce/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_PREFIX: gow/xfce
+
+jobs:
+  build-xfce:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set repository owner lowercase
+        id: repo-owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push XFCE image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/xfce/build
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:edge
+            ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:latest
+            ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:enhanced
+          build-args: |
+            BASE_APP_IMAGE=ghcr.io/games-on-whales/base-app:edge
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 XFCE Container Built Successfully ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Built Images:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:edge\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:enhanced\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛠️ Included Tools:" >> $GITHUB_STEP_SUMMARY
+          echo "- Visual Studio Code with keyring support" >> $GITHUB_STEP_SUMMARY
+          echo "- Google Chrome with container-safe flags" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker CE with BuildKit" >> $GITHUB_STEP_SUMMARY
+          echo "- Unity Hub" >> $GITHUB_STEP_SUMMARY
+          echo "- Blender" >> $GITHUB_STEP_SUMMARY
+          echo "- Filezilla" >> $GITHUB_STEP_SUMMARY
+          echo "- Development tools (Git, Python, Node.js, Java)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Use in Wolf:" >> $GITHUB_STEP_SUMMARY
+          echo "Update your Wolf config to use: \`${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/${{ env.IMAGE_NAME_PREFIX }}:enhanced\`" >> $GITHUB_STEP_SUMMARY

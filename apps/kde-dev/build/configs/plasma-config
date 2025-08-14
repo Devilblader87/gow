@@ -1,0 +1,7 @@
+# KDE Plasma Configuration for Development Desktop
+[Theme]
+name=breeze
+
+[Shortcuts]
+krunner=Alt+Space
+konsole=Ctrl+Alt+T
